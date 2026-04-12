@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>画板</title>
+    <title>黑笔 · 无限历史</title>
     <style>
         * {
             margin: 0;
@@ -48,52 +48,6 @@
             background-color: white;
         }
 
-        .save-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 52px;
-            height: 52px;
-            background: rgba(30,30,35,0.85);
-            backdrop-filter: blur(12px);
-            border-radius: 40px;
-            border: 1px solid rgba(255,255,255,0.25);
-            box-shadow: 0 6px 14px rgba(0,0,0,0.3);
-            cursor: pointer;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-        }
-
-        .save-btn svg {
-            width: 26px;
-            height: 26px;
-            stroke: white;
-            stroke-width: 1.7;
-            fill: none;
-        }
-
-        .save-btn:active {
-            transform: scale(0.94);
-            background: rgba(20,20,25,0.95);
-        }
-
-        @media (max-width: 700px) {
-            .save-btn {
-                width: 48px;
-                height: 48px;
-                top: 16px;
-                right: 16px;
-            }
-            .save-btn svg {
-                width: 22px;
-                height: 22px;
-            }
-        }
-
         body, .canvas-stage, .canvas-wrapper {
             touch-action: none;
         }
@@ -107,23 +61,14 @@
     </div>
 </div>
 
-<div class="save-btn" id="saveButton">
-    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-        <polyline points="17 21 17 13 7 13 7 21" />
-        <polyline points="7 3 7 8 15 8" />
-    </svg>
-</div>
-
 <script>
     (function() {
-        const CANVAS_W = 1920;
-        const CANVAS_H = 1080;
+        const CANVAS_W = 10000;
+        const CANVAS_H = 10000;
         
         const canvas = document.getElementById('mainCanvas');
         const wrapper = document.getElementById('canvasWrapper');
         const stage = document.getElementById('canvasStage');
-        const saveBtn = document.getElementById('saveButton');
         
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
@@ -131,9 +76,6 @@
         canvas.style.height = `${CANVAS_H}px`;
         
         const ctx = canvas.getContext('2d');
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         
         const LINE_WIDTH = 3.5;
         ctx.lineCap = 'round';
@@ -144,24 +86,26 @@
         let scale = 1.0;
         let tx = 0, ty = 0;
         
-        function updateScaleLimits() {
+        function getScreenSize() {
             const stageRect = stage.getBoundingClientRect();
-            const screenW = stageRect.width;
-            const screenH = stageRect.height;
+            return { width: stageRect.width, height: stageRect.height };
+        }
+        
+        function updateScaleLimits() {
+            const { height: screenH, width: screenW } = getScreenSize();
             const minScaleX = screenW / CANVAS_W;
             const minScaleY = screenH / CANVAS_H;
-            const minScale = Math.min(minScaleX, minScaleY);
-            return { minScale, maxScale: 3.0 };
+            let minScale = Math.min(minScaleX, minScaleY);
+            const targetMinScale = screenH / 1920;
+            const finalMinScale = Math.max(minScale, targetMinScale);
+            return { minScale: finalMinScale, maxScale: 3.0 };
         }
         
         let scaleMin = 1.0;
         let scaleMax = 3.0;
         
         function clampTranslation() {
-            const stageRect = stage.getBoundingClientRect();
-            const screenW = stageRect.width;
-            const screenH = stageRect.height;
-            
+            const { width: screenW, height: screenH } = getScreenSize();
             const canvasDisplayW = CANVAS_W * scale;
             const canvasDisplayH = CANVAS_H * scale;
             
@@ -196,9 +140,9 @@
             scale = Math.min(scaleMax, Math.max(scaleMin, scale));
             
             if (oldScale !== scale) {
-                const stageRect = stage.getBoundingClientRect();
-                const centerX = stageRect.width / 2;
-                const centerY = stageRect.height / 2;
+                const { width: screenW, height: screenH } = getScreenSize();
+                const centerX = screenW / 2;
+                const centerY = screenH / 2;
                 const oldCanvasX = (centerX - tx) / oldScale;
                 const oldCanvasY = (centerY - ty) / oldScale;
                 tx = centerX - oldCanvasX * scale;
@@ -208,18 +152,19 @@
             applyTransform();
         }
         
-        function centerCanvasInitially() {
+        function setDefaultView() {
+            const { height: screenH } = getScreenSize();
+            const targetScale = screenH / 720;
             const limits = updateScaleLimits();
-            scale = limits.minScale;
+            scale = Math.min(limits.maxScale, Math.max(limits.minScale, targetScale));
             scaleMin = limits.minScale;
             scaleMax = limits.maxScale;
-            const stageRect = stage.getBoundingClientRect();
-            const screenW = stageRect.width;
-            const screenH = stageRect.height;
+            const { width: screenW, height: screenH_ } = getScreenSize();
             const canvasDisplayW = CANVAS_W * scale;
             const canvasDisplayH = CANVAS_H * scale;
             tx = (screenW - canvasDisplayW) / 2;
-            ty = (screenH - canvasDisplayH) / 2;
+            ty = (screenH_ - canvasDisplayH) / 2;
+            clampTranslation();
             applyTransform();
         }
         
@@ -271,6 +216,44 @@
                 x: (touches[0].clientX + touches[1].clientX) / 2,
                 y: (touches[0].clientY + touches[1].clientY) / 2
             };
+        }
+        
+        let saveHistoryTimer = null;
+        function saveCanvasToLocalStorage() {
+            try {
+                const dataURL = canvas.toDataURL('image/png');
+                localStorage.setItem('blackpen_masterpiece', dataURL);
+            } catch(e) {}
+        }
+        
+        function debouncedSaveHistory() {
+            if (saveHistoryTimer) clearTimeout(saveHistoryTimer);
+            saveHistoryTimer = setTimeout(() => {
+                saveCanvasToLocalStorage();
+            }, 300);
+        }
+        
+        function loadCanvasFromLocalStorage() {
+            const saved = localStorage.getItem('blackpen_masterpiece');
+            if (saved) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+                    ctx.drawImage(img, 0, 0);
+                    ctx.lineWidth = LINE_WIDTH;
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                };
+                img.src = saved;
+            } else {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+                ctx.lineWidth = LINE_WIDTH;
+                ctx.strokeStyle = '#000000';
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+            }
         }
         
         function onTouchStart(e) {
@@ -358,6 +341,7 @@
                     lastCanvasX = curCanvasX;
                     lastCanvasY = curCanvasY;
                     currentStrokeMoved = true;
+                    debouncedSaveHistory();
                 }
             }
         }
@@ -371,6 +355,8 @@
                     activeGesture = null;
                 }
                 if (isDrawing) isDrawing = false;
+                if (!currentStrokeMoved && !isDrawing) {}
+                else if (currentStrokeMoved) debouncedSaveHistory();
                 return;
             }
             
@@ -381,7 +367,10 @@
                         const lastTouch = changed[0];
                         const canvasCoord = screenToCanvas(lastTouch.clientX, lastTouch.clientY);
                         drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
+                        debouncedSaveHistory();
                     }
+                } else if (currentStrokeMoved) {
+                    debouncedSaveHistory();
                 }
                 isDrawing = false;
                 currentStrokeMoved = false;
@@ -458,6 +447,7 @@
                     lastCanvasX = curX;
                     lastCanvasY = curY;
                     currentStrokeMoved = true;
+                    debouncedSaveHistory();
                 }
             }
         }
@@ -473,6 +463,9 @@
                 if (!currentStrokeMoved) {
                     const canvasCoord = screenToCanvas(e.clientX, e.clientY);
                     drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
+                    debouncedSaveHistory();
+                } else {
+                    debouncedSaveHistory();
                 }
                 isDrawing = false;
                 currentStrokeMoved = false;
@@ -482,6 +475,7 @@
         
         function onMouseLeave(e) {
             if (isDrawing) {
+                if (currentStrokeMoved) debouncedSaveHistory();
                 isDrawing = false;
                 currentStrokeMoved = false;
             }
@@ -492,27 +486,6 @@
         }
         
         canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-        
-         manualSave() {
-        function manualSave() {
-            canvas.toBlob((blob) => {
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    const base64data = reader.result;
-                    try {
-                        Android.saveImage(base64data);
-                    } catch(e) {
-                        console.log("保存失败", e);
-                    }
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/png');
-        }
-        
-        saveBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            manualSave();
-        });
         
         canvas.addEventListener('touchstart', onTouchStart, { passive: false });
         canvas.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -532,12 +505,17 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         }
-        resetCanvasBackground();
         
-        centerCanvasInitially();
+        loadCanvasFromLocalStorage();
+        
+        setDefaultView();
         
         window.addEventListener('resize', () => {
             refreshBoundsAndClamp();
+        });
+        
+        window.addEventListener('beforeunload', () => {
+            saveCanvasToLocalStorage();
         });
     })();
 </script>

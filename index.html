@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>黑笔 · 无限历史</title>
+    <title>彩色硬边画板</title>
     <style>
         * {
             margin: 0;
@@ -43,13 +43,141 @@
 
         canvas {
             display: block;
-            box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
             cursor: crosshair;
             background-color: white;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
         }
 
-        body, .canvas-stage, .canvas-wrapper {
-            touch-action: none;
+        /* 左侧笔刷大小调节 */
+        .brush-slider-container {
+            position: fixed;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(30,30,35,0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            padding: 12px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .brush-slider-label {
+            color: white;
+            font-size: 10px;
+            font-weight: 500;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            opacity: 0.7;
+        }
+
+        input[type="range"][orient="vertical"] {
+            writing-mode: bt-lr;
+            -webkit-appearance: slider-vertical;
+            width: 16px;
+            height: 160px;
+            background: #3a3a40;
+            border-radius: 10px;
+            accent-color: #000000;
+        }
+
+        .brush-value {
+            color: white;
+            background: #000000aa;
+            padding: 2px 6px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            min-width: 38px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 右侧工具栏 */
+        .toolbar-right {
+            position: fixed;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(30,30,35,0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 36px;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 30px;
+            background: rgba(20,20,25,0.7);
+            border: 1px solid rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        .tool-btn.active {
+            background: #000000;
+            border-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .tool-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: white;
+            stroke-width: 1.7;
+            fill: none;
+        }
+
+        .tool-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* 颜色切换按钮 - 显示当前颜色 */
+        .color-switch-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 30px;
+            background: #000000;
+            border: 2px solid white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .color-switch-btn:active {
+            transform: scale(0.92);
+        }
+
+        .separator {
+            width: 80%;
+            height: 1px;
+            background: rgba(255,255,255,0.2);
+            margin: 6px 0;
+        }
+
+        @media (max-width: 700px) {
+            .tool-btn { width: 36px; height: 36px; }
+            .tool-btn svg { width: 18px; height: 18px; }
+            .color-switch-btn { width: 36px; height: 36px; }
+            .brush-slider-container { left: 10px; padding: 10px 5px; }
+            input[type="range"][orient="vertical"] { height: 130px; width: 14px; }
         }
     </style>
 </head>
@@ -61,10 +189,44 @@
     </div>
 </div>
 
+<!-- 左侧笔刷大小调节 -->
+<div class="brush-slider-container">
+    <div class="brush-slider-label">PX</div>
+    <input type="range" id="brushSizeSlider" orient="vertical" min="1" max="100" value="3" step="1">
+    <div class="brush-value" id="brushSizeValue">3px</div>
+</div>
+
+<!-- 右侧工具栏 -->
+<div class="toolbar-right">
+    <div class="tool-btn" id="penToolBtn" title="画笔">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        </svg>
+    </div>
+    <div class="tool-btn eraser" id="eraserToolBtn" title="橡皮擦">
+        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none">
+            <path d="M7 21h10M5 17l9-9 5 5-9 9-5-5z" stroke-linecap="round"/>
+            <path d="M14 7l3 3" stroke-linecap="round"/>
+        </svg>
+    </div>
+    <div class="separator"></div>
+    <!-- 颜色切换按钮：点击切换下一种颜色 -->
+    <div class="color-switch-btn" id="colorSwitchBtn" title="切换颜色"></div>
+    <div class="separator"></div>
+    <div class="tool-btn" id="saveToolBtn" title="保存">
+        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+        </svg>
+    </div>
+</div>
+
 <script>
     (function() {
-        const CANVAS_W = 10000;
-        const CANVAS_H = 10000;
+        
+        const CANVAS_W = 1080;
+        const CANVAS_H = 4000;
         
         const canvas = document.getElementById('mainCanvas');
         const wrapper = document.getElementById('canvasWrapper');
@@ -74,35 +236,147 @@
         canvas.height = CANVAS_H;
         canvas.style.width = `${CANVAS_W}px`;
         canvas.style.height = `${CANVAS_H}px`;
+        canvas.style.imageRendering = 'crisp-edges';
+        canvas.style.imageRendering = 'pixelated';
         
         const ctx = canvas.getContext('2d');
         
-        const LINE_WIDTH = 3.5;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = LINE_WIDTH;
         
-        let scale = 1.0;
+        let strokes = [];
+        
+        
+        let currentTool = 'pen';
+        let penSize = 3;
+        let eraserSize = 30;
+        
+        
+        const colorList = ['#000000', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#5AC8FA', '#007AFF', '#AF52DE'];
+        let currentColorIndex = 0;  
+        let currentColor = colorList[0];
+        
+        function getCurrentSize() {
+            return currentTool === 'pen' ? penSize : eraserSize;
+        }
+        
+        function getCurrentColor() {
+            return currentTool === 'pen' ? currentColor : '#FFFFFF';
+        }
+        
+        
+        function updateColorButton() {
+            const colorBtn = document.getElementById('colorSwitchBtn');
+            if (colorBtn) {
+                colorBtn.style.backgroundColor = currentColor;
+                
+                if (currentColor === '#000000') {
+                    colorBtn.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.3)';
+                } else {
+                    colorBtn.style.boxShadow = 'none';
+                }
+            }
+        }
+        
+        
+        function switchToNextColor() {
+            currentColorIndex = (currentColorIndex + 1) % colorList.length;
+            currentColor = colorList[currentColorIndex];
+            updateColorButton();
+            
+            if (currentTool !== 'pen') {
+                setActiveTool('pen');
+            }
+        }
+        
+        
+        function redrawAllStrokes() {
+            ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            
+            for (const stroke of strokes) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = stroke.color;
+                ctx.fillStyle = stroke.color;
+                ctx.lineWidth = stroke.size;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (stroke.type === 'dot') {
+                    ctx.beginPath();
+                    ctx.arc(stroke.x, stroke.y, stroke.size / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } 
+                else if (stroke.type === 'line' && stroke.points.length >= 2) {
+                    ctx.beginPath();
+                    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        
+        function addDot(x, y) {
+            strokes.push({
+                type: 'dot',
+                x: x,
+                y: y,
+                size: getCurrentSize(),
+                color: getCurrentColor()
+            });
+            redrawAllStrokes();
+        }
+        
+        let currentStrokePoints = [];
+        function startStroke(x, y) {
+            currentStrokePoints = [{ x, y }];
+        }
+        
+        function addStrokePoint(x, y) {
+            if (currentStrokePoints.length === 0) return;
+            const last = currentStrokePoints[currentStrokePoints.length - 1];
+            if (Math.hypot(last.x - x, last.y - y) < 1.5) return;
+            currentStrokePoints.push({ x, y });
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = getCurrentColor();
+            ctx.lineWidth = getCurrentSize();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(last.x, last.y);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        function endStroke() {
+            if (currentStrokePoints.length >= 2) {
+                strokes.push({
+                    type: 'line',
+                    points: [...currentStrokePoints],
+                    size: getCurrentSize(),
+                    color: getCurrentColor()
+                });
+            } else if (currentStrokePoints.length === 1) {
+                addDot(currentStrokePoints[0].x, currentStrokePoints[0].y);
+            }
+            currentStrokePoints = [];
+        }
+        
+        
+        let scale = 4.0;
         let tx = 0, ty = 0;
+        const DEFAULT_SCALE = 4.0;
+        const MAX_SCALE = 40.0;
+        const MIN_SCALE = 0.5;
         
         function getScreenSize() {
-            const stageRect = stage.getBoundingClientRect();
-            return { width: stageRect.width, height: stageRect.height };
+            const rect = stage.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
         }
-        
-        function updateScaleLimits() {
-            const { height: screenH, width: screenW } = getScreenSize();
-            const minScaleX = screenW / CANVAS_W;
-            const minScaleY = screenH / CANVAS_H;
-            let minScale = Math.min(minScaleX, minScaleY);
-            const targetMinScale = screenH / 1920;
-            const finalMinScale = Math.max(minScale, targetMinScale);
-            return { minScale: finalMinScale, maxScale: 3.0 };
-        }
-        
-        let scaleMin = 1.0;
-        let scaleMax = 3.0;
         
         function clampTranslation() {
             const { width: screenW, height: screenH } = getScreenSize();
@@ -110,8 +384,7 @@
             const canvasDisplayH = CANVAS_H * scale;
             
             if (canvasDisplayW <= screenW) {
-                const targetTx = (screenW - canvasDisplayW) / 2;
-                tx = targetTx;
+                tx = (screenW - canvasDisplayW) / 2;
             } else {
                 const minTx = screenW - canvasDisplayW;
                 const maxTx = 0;
@@ -119,8 +392,7 @@
             }
             
             if (canvasDisplayH <= screenH) {
-                const targetTy = (screenH - canvasDisplayH) / 2;
-                ty = targetTy;
+                ty = (screenH - canvasDisplayH) / 2;
             } else {
                 const minTy = screenH - canvasDisplayH;
                 const maxTy = 0;
@@ -132,19 +404,16 @@
             wrapper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
         }
         
-        function refreshBoundsAndClamp() {
-            const limits = updateScaleLimits();
-            scaleMin = limits.minScale;
-            scaleMax = limits.maxScale;
-            let oldScale = scale;
-            scale = Math.min(scaleMax, Math.max(scaleMin, scale));
-            
-            if (oldScale !== scale) {
+        function clampScaleAndTransform() {
+            let newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+            if (newScale !== scale) {
                 const { width: screenW, height: screenH } = getScreenSize();
                 const centerX = screenW / 2;
                 const centerY = screenH / 2;
+                const oldScale = scale;
                 const oldCanvasX = (centerX - tx) / oldScale;
                 const oldCanvasY = (centerY - ty) / oldScale;
+                scale = newScale;
                 tx = centerX - oldCanvasX * scale;
                 ty = centerY - oldCanvasY * scale;
             }
@@ -153,17 +422,12 @@
         }
         
         function setDefaultView() {
-            const { height: screenH } = getScreenSize();
-            const targetScale = screenH / 720;
-            const limits = updateScaleLimits();
-            scale = Math.min(limits.maxScale, Math.max(limits.minScale, targetScale));
-            scaleMin = limits.minScale;
-            scaleMax = limits.maxScale;
-            const { width: screenW, height: screenH_ } = getScreenSize();
+            scale = DEFAULT_SCALE;
+            const { width: screenW, height: screenH } = getScreenSize();
             const canvasDisplayW = CANVAS_W * scale;
             const canvasDisplayH = CANVAS_H * scale;
             tx = (screenW - canvasDisplayW) / 2;
-            ty = (screenH_ - canvasDisplayH) / 2;
+            ty = (screenH - canvasDisplayH) / 2;
             clampTranslation();
             applyTransform();
         }
@@ -178,24 +442,30 @@
         }
         
         let isDrawing = false;
-        let lastCanvasX = 0, lastCanvasY = 0;
-        let currentStrokeMoved = false;
         
-        function drawLineOnCanvas(fromX, fromY, toX, toY) {
-            ctx.beginPath();
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
+        function onPointerStart(x, y) {
+            const coord = screenToCanvas(x, y);
+            startStroke(coord.x, coord.y);
+            isDrawing = true;
         }
         
-        function drawDotOnCanvas(x, y) {
-            ctx.save();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(x, y, LINE_WIDTH / 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+        function onPointerMove(x, y) {
+            if (!isDrawing) return;
+            const coord = screenToCanvas(x, y);
+            addStrokePoint(coord.x, coord.y);
         }
+        
+        function onPointerEnd(x, y) {
+            if (!isDrawing) return;
+            const coord = screenToCanvas(x, y);
+            if (currentStrokePoints.length === 0) {
+                addDot(coord.x, coord.y);
+            } else {
+                endStroke();
+            }
+            isDrawing = false;
+        }
+        
         
         let activeGesture = null;
         let initialPinchDistance = 0;
@@ -218,44 +488,6 @@
             };
         }
         
-        let saveHistoryTimer = null;
-        function saveCanvasToLocalStorage() {
-            try {
-                const dataURL = canvas.toDataURL('image/png');
-                localStorage.setItem('blackpen_masterpiece', dataURL);
-            } catch(e) {}
-        }
-        
-        function debouncedSaveHistory() {
-            if (saveHistoryTimer) clearTimeout(saveHistoryTimer);
-            saveHistoryTimer = setTimeout(() => {
-                saveCanvasToLocalStorage();
-            }, 300);
-        }
-        
-        function loadCanvasFromLocalStorage() {
-            const saved = localStorage.getItem('blackpen_masterpiece');
-            if (saved) {
-                const img = new Image();
-                img.onload = () => {
-                    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-                    ctx.drawImage(img, 0, 0);
-                    ctx.lineWidth = LINE_WIDTH;
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                };
-                img.src = saved;
-            } else {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-                ctx.lineWidth = LINE_WIDTH;
-                ctx.strokeStyle = '#000000';
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-            }
-        }
-        
         function onTouchStart(e) {
             e.preventDefault();
             const touches = e.touches;
@@ -264,26 +496,19 @@
             if (count === 1) {
                 if (activeGesture === 'pinch') return;
                 activeGesture = 'draw';
-                const touch = touches[0];
-                const canvasCoord = screenToCanvas(touch.clientX, touch.clientY);
-                isDrawing = true;
-                currentStrokeMoved = false;
-                lastCanvasX = canvasCoord.x;
-                lastCanvasY = canvasCoord.y;
+                onPointerStart(touches[0].clientX, touches[0].clientY);
             } 
             else if (count === 2) {
                 activeGesture = 'pinch';
                 initialPinchDistance = getTouchDistance(touches);
                 const center = getTwoFingerCenter(touches);
-                if (center) {
-                    initialPanCenter = { x: center.x, y: center.y };
-                }
+                if (center) initialPanCenter = { x: center.x, y: center.y };
                 initialScale = scale;
                 initialTx = tx;
                 initialTy = ty;
                 if (isDrawing) {
                     isDrawing = false;
-                    currentStrokeMoved = false;
+                    endStroke();
                 }
             }
         }
@@ -298,9 +523,7 @@
                 const newCenter = getTwoFingerCenter(touches);
                 if (newCenter && initialPinchDistance > 0) {
                     let newScale = initialScale * (newDistance / initialPinchDistance);
-                    const limits = updateScaleLimits();
-                    newScale = Math.min(limits.maxScale, Math.max(limits.minScale, newScale));
-                    
+                    newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
                     const deltaX = newCenter.x - initialPanCenter.x;
                     const deltaY = newCenter.y - initialPanCenter.y;
                     
@@ -310,11 +533,9 @@
                         const canvasY = (initialPanCenter.y - initialTy) / oldScale;
                         let baseTx = initialPanCenter.x - canvasX * newScale;
                         let baseTy = initialPanCenter.y - canvasY * newScale;
-                        let finalTx = baseTx + deltaX;
-                        let finalTy = baseTy + deltaY;
+                        tx = baseTx + deltaX;
+                        ty = baseTy + deltaY;
                         scale = newScale;
-                        tx = finalTx;
-                        ty = finalTy;
                         clampTranslation();
                         applyTransform();
                         initialScale = scale;
@@ -326,104 +547,71 @@
                 }
                 if (isDrawing) {
                     isDrawing = false;
-                    currentStrokeMoved = false;
+                    endStroke();
                 }
                 return;
             }
             
             if (count === 1 && activeGesture === 'draw' && isDrawing) {
-                const touch = touches[0];
-                const canvasCoord = screenToCanvas(touch.clientX, touch.clientY);
-                const curCanvasX = canvasCoord.x;
-                const curCanvasY = canvasCoord.y;
-                if ((curCanvasX !== lastCanvasX || curCanvasY !== lastCanvasY)) {
-                    drawLineOnCanvas(lastCanvasX, lastCanvasY, curCanvasX, curCanvasY);
-                    lastCanvasX = curCanvasX;
-                    lastCanvasY = curCanvasY;
-                    currentStrokeMoved = true;
-                    debouncedSaveHistory();
-                }
+                onPointerMove(touches[0].clientX, touches[0].clientY);
             }
         }
         
         function onTouchEnd(e) {
             e.preventDefault();
-            const remainingTouches = e.touches.length;
-            
+            const remaining = e.touches.length;
             if (activeGesture === 'pinch') {
-                if (remainingTouches < 2) {
-                    activeGesture = null;
+                if (remaining < 2) activeGesture = null;
+                if (isDrawing) {
+                    isDrawing = false;
+                    endStroke();
                 }
-                if (isDrawing) isDrawing = false;
-                if (!currentStrokeMoved && !isDrawing) {}
-                else if (currentStrokeMoved) debouncedSaveHistory();
                 return;
             }
-            
-            if (activeGesture === 'draw') {
-                if (!currentStrokeMoved && isDrawing) {
-                    const changed = e.changedTouches;
-                    if (changed.length > 0) {
-                        const lastTouch = changed[0];
-                        const canvasCoord = screenToCanvas(lastTouch.clientX, lastTouch.clientY);
-                        drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
-                        debouncedSaveHistory();
-                    }
-                } else if (currentStrokeMoved) {
-                    debouncedSaveHistory();
+            if (activeGesture === 'draw' && isDrawing) {
+                const changed = e.changedTouches;
+                if (changed.length > 0) {
+                    onPointerEnd(changed[0].clientX, changed[0].clientY);
+                } else {
+                    onPointerEnd(0, 0);
                 }
-                isDrawing = false;
-                currentStrokeMoved = false;
-                if (remainingTouches === 0) {
-                    activeGesture = null;
-                } else if (remainingTouches === 1) {
+                if (remaining === 0) activeGesture = null;
+                else if (remaining === 1 && !isDrawing) {
                     const touches = e.touches;
                     if (touches.length === 1) {
-                        const touch = touches[0];
-                        const coord = screenToCanvas(touch.clientX, touch.clientY);
-                        isDrawing = true;
-                        currentStrokeMoved = false;
-                        lastCanvasX = coord.x;
-                        lastCanvasY = coord.y;
+                        onPointerStart(touches[0].clientX, touches[0].clientY);
                         activeGesture = 'draw';
                     }
                 } else {
                     activeGesture = null;
                 }
             }
-            
-            if (remainingTouches === 0) {
-                activeGesture = null;
-                isDrawing = false;
-            }
+            if (remaining === 0) activeGesture = null;
         }
         
+        
         let isMiddlePanning = false;
-        let panStartMouse = { x: 0, y: 0 };
+        let panStart = { x: 0, y: 0 };
         let startTx = 0, startTy = 0;
         
         function onMouseDown(e) {
             if (e.button === 1) {
                 e.preventDefault();
                 isMiddlePanning = true;
-                panStartMouse.x = e.clientX;
-                panStartMouse.y = e.clientY;
+                panStart.x = e.clientX;
+                panStart.y = e.clientY;
                 startTx = tx;
                 startTy = ty;
                 if (isDrawing) {
                     isDrawing = false;
-                    currentStrokeMoved = false;
+                    endStroke();
                 }
                 activeGesture = 'pan';
                 return;
             }
             if (e.button === 0) {
                 e.preventDefault();
-                const canvasCoord = screenToCanvas(e.clientX, e.clientY);
-                isDrawing = true;
-                currentStrokeMoved = false;
-                lastCanvasX = canvasCoord.x;
-                lastCanvasY = canvasCoord.y;
+                onPointerStart(e.clientX, e.clientY);
                 activeGesture = 'draw';
             }
         }
@@ -431,24 +619,16 @@
         function onMouseMove(e) {
             if (isMiddlePanning && activeGesture === 'pan') {
                 e.preventDefault();
-                const deltaX = e.clientX - panStartMouse.x;
-                const deltaY = e.clientY - panStartMouse.y;
-                tx = startTx + deltaX;
-                ty = startTy + deltaY;
+                const dx = e.clientX - panStart.x;
+                const dy = e.clientY - panStart.y;
+                tx = startTx + dx;
+                ty = startTy + dy;
                 clampTranslation();
                 applyTransform();
                 return;
             }
             if (isDrawing && activeGesture === 'draw') {
-                const canvasCoord = screenToCanvas(e.clientX, e.clientY);
-                const curX = canvasCoord.x, curY = canvasCoord.y;
-                if ((curX !== lastCanvasX || curY !== lastCanvasY)) {
-                    drawLineOnCanvas(lastCanvasX, lastCanvasY, curX, curY);
-                    lastCanvasX = curX;
-                    lastCanvasY = curY;
-                    currentStrokeMoved = true;
-                    debouncedSaveHistory();
-                }
+                onPointerMove(e.clientX, e.clientY);
             }
         }
         
@@ -460,62 +640,102 @@
                 return;
             }
             if (isDrawing) {
-                if (!currentStrokeMoved) {
-                    const canvasCoord = screenToCanvas(e.clientX, e.clientY);
-                    drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
-                    debouncedSaveHistory();
-                } else {
-                    debouncedSaveHistory();
-                }
-                isDrawing = false;
-                currentStrokeMoved = false;
+                onPointerEnd(e.clientX, e.clientY);
                 activeGesture = null;
             }
         }
         
         function onMouseLeave(e) {
             if (isDrawing) {
-                if (currentStrokeMoved) debouncedSaveHistory();
+                onPointerEnd(e.clientX, e.clientY);
                 isDrawing = false;
-                currentStrokeMoved = false;
             }
-            if (isMiddlePanning) {
-                isMiddlePanning = false;
-            }
+            if (isMiddlePanning) isMiddlePanning = false;
             activeGesture = null;
         }
         
-        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         
+        const penBtn = document.getElementById('penToolBtn');
+        const eraserBtn = document.getElementById('eraserToolBtn');
+        const saveBtn = document.getElementById('saveToolBtn');
+        const sizeSlider = document.getElementById('brushSizeSlider');
+        const sizeValue = document.getElementById('brushSizeValue');
+        const colorSwitchBtn = document.getElementById('colorSwitchBtn');
+        
+        function setActiveTool(tool) {
+            currentTool = tool;
+            if (tool === 'pen') {
+                penBtn.classList.add('active');
+                eraserBtn.classList.remove('active');
+                sizeSlider.value = penSize;
+                sizeValue.innerText = penSize + 'px';
+            } else {
+                eraserBtn.classList.add('active');
+                penBtn.classList.remove('active');
+                sizeSlider.value = eraserSize;
+                sizeValue.innerText = eraserSize + 'px';
+            }
+        }
+        
+        penBtn.addEventListener('click', () => setActiveTool('pen'));
+        eraserBtn.addEventListener('click', () => setActiveTool('eraser'));
+        
+        sizeSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (currentTool === 'pen') {
+                penSize = val;
+            } else {
+                eraserSize = val;
+            }
+            sizeValue.innerText = val + 'px';
+        });
+        
+        colorSwitchBtn.addEventListener('click', () => {
+            switchToNextColor();
+        });
+        
+        saveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            try {
+                const dataURL = canvas.toDataURL('image/png');
+                localStorage.setItem('vector_art_save', dataURL);
+                saveBtn.style.transform = 'scale(0.94)';
+                setTimeout(() => { saveBtn.style.transform = ''; }, 150);
+            } catch(e) {}
+        });
+        
+        function loadFromLocal() {
+            const saved = localStorage.getItem('vector_art_save');
+            if (saved) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+                    ctx.drawImage(img, 0, 0);
+                    strokes = [];
+                };
+                img.src = saved;
+            } else {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            }
+        }
+        
+        loadFromLocal();
+        setActiveTool('pen');
+        updateColorButton();
+        setDefaultView();
+        
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         canvas.addEventListener('touchstart', onTouchStart, { passive: false });
         canvas.addEventListener('touchmove', onTouchMove, { passive: false });
         canvas.addEventListener('touchend', onTouchEnd);
         canvas.addEventListener('touchcancel', onTouchEnd);
-        
         canvas.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
         canvas.addEventListener('mouseleave', onMouseLeave);
-        
-        function resetCanvasBackground() {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-            ctx.lineWidth = LINE_WIDTH;
-            ctx.strokeStyle = '#000000';
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        }
-        
-        loadCanvasFromLocalStorage();
-        
-        setDefaultView();
-        
         window.addEventListener('resize', () => {
-            refreshBoundsAndClamp();
-        });
-        
-        window.addEventListener('beforeunload', () => {
-            saveCanvasToLocalStorage();
+            clampScaleAndTransform();
         });
     })();
 </script>

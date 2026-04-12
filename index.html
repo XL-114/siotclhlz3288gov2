@@ -493,20 +493,19 @@
         
         canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         
+         manualSave() {
         function manualSave() {
             canvas.toBlob((blob) => {
-                if (!blob) return;
-                const filename = `drawing.png`;
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                saveBtn.style.transform = 'scale(0.94)';
-                setTimeout(() => { saveBtn.style.transform = ''; }, 150);
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64data = reader.result;
+                    try {
+                        Android.saveImage(base64data);
+                    } catch(e) {
+                        console.log("保存失败", e);
+                    }
+                };
+                reader.readAsDataURL(blob);
             }, 'image/png');
         }
         

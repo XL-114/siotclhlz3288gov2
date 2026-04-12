@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>彩色硬边画板</title>
+    <title>矢量画板 · 完整保存</title>
     <style>
         * {
             margin: 0;
@@ -49,7 +49,6 @@
             image-rendering: pixelated;
         }
 
-        /* 左侧笔刷大小调节 */
         .brush-slider-container {
             position: fixed;
             left: 16px;
@@ -99,7 +98,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* 右侧工具栏 */
         .toolbar-right {
             position: fixed;
             right: 16px;
@@ -150,7 +148,6 @@
             transform: scale(0.94);
         }
 
-        /* 颜色切换按钮 - 显示当前颜色 */
         .color-switch-btn {
             width: 40px;
             height: 40px;
@@ -189,14 +186,12 @@
     </div>
 </div>
 
-<!-- 左侧笔刷大小调节 -->
 <div class="brush-slider-container">
     <div class="brush-slider-label">PX</div>
     <input type="range" id="brushSizeSlider" orient="vertical" min="1" max="100" value="3" step="1">
     <div class="brush-value" id="brushSizeValue">3px</div>
 </div>
 
-<!-- 右侧工具栏 -->
 <div class="toolbar-right">
     <div class="tool-btn" id="penToolBtn" title="画笔">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -210,7 +205,6 @@
         </svg>
     </div>
     <div class="separator"></div>
-    <!-- 颜色切换按钮：点击切换下一种颜色 -->
     <div class="color-switch-btn" id="colorSwitchBtn" title="切换颜色"></div>
     <div class="separator"></div>
     <div class="tool-btn" id="saveToolBtn" title="保存">
@@ -224,7 +218,7 @@
 
 <script>
     (function() {
-        
+        // 画布尺寸 1080x4000
         const CANVAS_W = 1080;
         const CANVAS_H = 4000;
         
@@ -241,17 +235,17 @@
         
         const ctx = canvas.getContext('2d');
         
-        
+        // 矢量数据存储
         let strokes = [];
         
-        
+        // 当前工具设置
         let currentTool = 'pen';
         let penSize = 3;
         let eraserSize = 30;
         
-        
+        // 颜色列表：黑、红、橙、黄、绿、青、蓝、紫
         const colorList = ['#000000', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#5AC8FA', '#007AFF', '#AF52DE'];
-        let currentColorIndex = 0;  
+        let currentColorIndex = 0;
         let currentColor = colorList[0];
         
         function getCurrentSize() {
@@ -262,12 +256,10 @@
             return currentTool === 'pen' ? currentColor : '#FFFFFF';
         }
         
-        
         function updateColorButton() {
             const colorBtn = document.getElementById('colorSwitchBtn');
             if (colorBtn) {
                 colorBtn.style.backgroundColor = currentColor;
-                
                 if (currentColor === '#000000') {
                     colorBtn.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.3)';
                 } else {
@@ -276,18 +268,16 @@
             }
         }
         
-        
         function switchToNextColor() {
             currentColorIndex = (currentColorIndex + 1) % colorList.length;
             currentColor = colorList[currentColorIndex];
             updateColorButton();
-            
             if (currentTool !== 'pen') {
                 setActiveTool('pen');
             }
         }
         
-        
+        // 核心：重绘全部矢量数据（保证所有内容基于原始坐标）
         function redrawAllStrokes() {
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
             ctx.fillStyle = '#FFFFFF';
@@ -307,7 +297,7 @@
                     ctx.arc(stroke.x, stroke.y, stroke.size / 2, 0, Math.PI * 2);
                     ctx.fill();
                 } 
-                else if (stroke.type === 'line' && stroke.points.length >= 2) {
+                else if (stroke.type === 'line' && stroke.points && stroke.points.length >= 2) {
                     ctx.beginPath();
                     ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
                     for (let i = 1; i < stroke.points.length; i++) {
@@ -319,6 +309,65 @@
             }
         }
         
+        // 保存完整绘画历史（矢量数据 + 预览图，但恢复时只用矢量数据）
+        function saveFullHistory() {
+            try {
+                // 保存矢量数据（这才是核心）
+                const strokesData = JSON.stringify(strokes);
+                localStorage.setItem('vector_strokes', strokesData);
+                // 同时保存一份预览图，方便分享或导出，但恢复时不依赖它
+                const previewURL = canvas.toDataURL('image/png');
+                localStorage.setItem('canvas_preview', previewURL);
+                
+                // 视觉反馈
+                const saveBtn = document.getElementById('saveToolBtn');
+                if (saveBtn) {
+                    saveBtn.style.transform = 'scale(0.94)';
+                    setTimeout(() => { if(saveBtn) saveBtn.style.transform = ''; }, 150);
+                }
+                console.log('绘画历史已保存，笔画数量:', strokes.length);
+            } catch(e) {
+                console.warn('保存失败', e);
+            }
+        }
+        
+        // 加载完整绘画历史
+        function loadFullHistory() {
+            const savedStrokes = localStorage.getItem('vector_strokes');
+            if (savedStrokes) {
+                try {
+                    strokes = JSON.parse(savedStrokes);
+                    redrawAllStrokes();
+                    console.log('成功加载矢量数据，笔画数量:', strokes.length);
+                } catch(e) {
+                    console.warn('解析矢量数据失败', e);
+                    initEmptyCanvas();
+                }
+            } else {
+                // 兼容旧版本：尝试只加载图片预览（但无法恢复矢量，只能降级）
+                const oldPreview = localStorage.getItem('vector_art_save');
+                if (oldPreview) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+                        ctx.drawImage(img, 0, 0);
+                        strokes = [];
+                        console.log('从旧版图片恢复，但丢失了矢量编辑能力');
+                    };
+                    img.src = oldPreview;
+                } else {
+                    initEmptyCanvas();
+                }
+            }
+        }
+        
+        function initEmptyCanvas() {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            strokes = [];
+        }
+        
+        // 添加笔画到历史并刷新
         function addDot(x, y) {
             strokes.push({
                 type: 'dot',
@@ -340,6 +389,7 @@
             const last = currentStrokePoints[currentStrokePoints.length - 1];
             if (Math.hypot(last.x - x, last.y - y) < 1.5) return;
             currentStrokePoints.push({ x, y });
+            // 增量绘制提高流畅度（但同时保持最终存储一致性）
             ctx.save();
             ctx.beginPath();
             ctx.strokeStyle = getCurrentColor();
@@ -364,14 +414,16 @@
                 addDot(currentStrokePoints[0].x, currentStrokePoints[0].y);
             }
             currentStrokePoints = [];
+            // 每完成一笔，自动保存历史（可选，但为了不频繁保存，仅在保存按钮点击时保存）
+            // 但为了满足“只有点击保存按钮才保存”，这里不做自动保存
         }
         
-        
+        // 视图变换
         let scale = 4.0;
         let tx = 0, ty = 0;
         const DEFAULT_SCALE = 4.0;
         const MAX_SCALE = 40.0;
-        const MIN_SCALE = 0.5;
+        const MIN_SCALE = 0.2;
         
         function getScreenSize() {
             const rect = stage.getBoundingClientRect();
@@ -466,7 +518,7 @@
             isDrawing = false;
         }
         
-        
+        // 手势处理
         let activeGesture = null;
         let initialPinchDistance = 0;
         let initialScale = 1.0;
@@ -589,7 +641,7 @@
             if (remaining === 0) activeGesture = null;
         }
         
-        
+        // 鼠标 + 中键拖拽
         let isMiddlePanning = false;
         let panStart = { x: 0, y: 0 };
         let startTx = 0, startTy = 0;
@@ -654,7 +706,7 @@
             activeGesture = null;
         }
         
-        
+        // UI绑定
         const penBtn = document.getElementById('penToolBtn');
         const eraserBtn = document.getElementById('eraserToolBtn');
         const saveBtn = document.getElementById('saveToolBtn');
@@ -694,33 +746,14 @@
             switchToNextColor();
         });
         
+        // 保存按钮：保存完整矢量历史
         saveBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            try {
-                const dataURL = canvas.toDataURL('image/png');
-                localStorage.setItem('vector_art_save', dataURL);
-                saveBtn.style.transform = 'scale(0.94)';
-                setTimeout(() => { saveBtn.style.transform = ''; }, 150);
-            } catch(e) {}
+            saveFullHistory();
         });
         
-        function loadFromLocal() {
-            const saved = localStorage.getItem('vector_art_save');
-            if (saved) {
-                const img = new Image();
-                img.onload = () => {
-                    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-                    ctx.drawImage(img, 0, 0);
-                    strokes = [];
-                };
-                img.src = saved;
-            } else {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-            }
-        }
-        
-        loadFromLocal();
+        // 初始化：加载历史矢量数据
+        loadFullHistory();
         setActiveTool('pen');
         updateColorButton();
         setDefaultView();

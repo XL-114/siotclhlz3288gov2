@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>画板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #1a1a1a;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            touch-action: none;
+        }
+
+        .canvas-stage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #2c2c2c;
+            touch-action: none;
+        }
+
+        .canvas-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            will-change: transform;
+            transform-origin: 0 0;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+            cursor: crosshair;
+            background-color: white;
+        }
+
+        .save-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 52px;
+            height: 52px;
+            background: rgba(30,30,35,0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        .save-btn svg {
+            width: 26px;
+            height: 26px;
+            stroke: white;
+            stroke-width: 1.7;
+            fill: none;
+        }
+
+        .save-btn:active {
+            transform: scale(0.94);
+            background: rgba(20,20,25,0.95);
+        }
+
+        @media (max-width: 700px) {
+            .save-btn {
+                width: 48px;
+                height: 48px;
+                top: 16px;
+                right: 16px;
+            }
+            .save-btn svg {
+                width: 22px;
+                height: 22px;
+            }
+        }
+
+        body, .canvas-stage, .canvas-wrapper {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="canvas-stage" id="canvasStage">
+    <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+</div>
+
+<div class="save-btn" id="saveButton">
+    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 8 15 8" />
+    </svg>
+</div>
+
+<script>
+    (function() {
+        const CANVAS_W = 1920;
+        const CANVAS_H = 1080;
+        
+        const canvas = document.getElementById('mainCanvas');
+        const wrapper = document.getElementById('canvasWrapper');
+        const stage = document.getElementById('canvasStage');
+        const saveBtn = document.getElementById('saveButton');
+        
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+        canvas.style.width = `${CANVAS_W}px`;
+        canvas.style.height = `${CANVAS_H}px`;
+        
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        
+        const LINE_WIDTH = 3.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = LINE_WIDTH;
+        
+        let scale = 1.0;
+        let tx = 0, ty = 0;
+        
+        function updateScaleLimits() {
+            const stageRect = stage.getBoundingClientRect();
+            const screenW = stageRect.width;
+            const screenH = stageRect.height;
+            const minScaleX = screenW / CANVAS_W;
+            const minScaleY = screenH / CANVAS_H;
+            const minScale = Math.min(minScaleX, minScaleY);
+            return { minScale, maxScale: 3.0 };
+        }
+        
+        let scaleMin = 1.0;
+        let scaleMax = 3.0;
+        
+        function clampTranslation() {
+            const stageRect = stage.getBoundingClientRect();
+            const screenW = stageRect.width;
+            const screenH = stageRect.height;
+            
+            const canvasDisplayW = CANVAS_W * scale;
+            const canvasDisplayH = CANVAS_H * scale;
+            
+            if (canvasDisplayW <= screenW) {
+                const targetTx = (screenW - canvasDisplayW) / 2;
+                tx = targetTx;
+            } else {
+                const minTx = screenW - canvasDisplayW;
+                const maxTx = 0;
+                tx = Math.min(maxTx, Math.max(minTx, tx));
+            }
+            
+            if (canvasDisplayH <= screenH) {
+                const targetTy = (screenH - canvasDisplayH) / 2;
+                ty = targetTy;
+            } else {
+                const minTy = screenH - canvasDisplayH;
+                const maxTy = 0;
+                ty = Math.min(maxTy, Math.max(minTy, ty));
+            }
+        }
+        
+        function applyTransform() {
+            wrapper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        }
+        
+        function refreshBoundsAndClamp() {
+            const limits = updateScaleLimits();
+            scaleMin = limits.minScale;
+            scaleMax = limits.maxScale;
+            let oldScale = scale;
+            scale = Math.min(scaleMax, Math.max(scaleMin, scale));
+            
+            if (oldScale !== scale) {
+                const stageRect = stage.getBoundingClientRect();
+                const centerX = stageRect.width / 2;
+                const centerY = stageRect.height / 2;
+                const oldCanvasX = (centerX - tx) / oldScale;
+                const oldCanvasY = (centerY - ty) / oldScale;
+                tx = centerX - oldCanvasX * scale;
+                ty = centerY - oldCanvasY * scale;
+            }
+            clampTranslation();
+            applyTransform();
+        }
+        
+        function centerCanvasInitially() {
+            const limits = updateScaleLimits();
+            scale = limits.minScale;
+            scaleMin = limits.minScale;
+            scaleMax = limits.maxScale;
+            const stageRect = stage.getBoundingClientRect();
+            const screenW = stageRect.width;
+            const screenH = stageRect.height;
+            const canvasDisplayW = CANVAS_W * scale;
+            const canvasDisplayH = CANVAS_H * scale;
+            tx = (screenW - canvasDisplayW) / 2;
+            ty = (screenH - canvasDisplayH) / 2;
+            applyTransform();
+        }
+        
+        function screenToCanvas(clientX, clientY) {
+            const canvasX = (clientX - tx) / scale;
+            const canvasY = (clientY - ty) / scale;
+            return {
+                x: Math.min(Math.max(0, canvasX), CANVAS_W),
+                y: Math.min(Math.max(0, canvasY), CANVAS_H)
+            };
+        }
+        
+        let isDrawing = false;
+        let lastCanvasX = 0, lastCanvasY = 0;
+        let currentStrokeMoved = false;
+        
+        function drawLineOnCanvas(fromX, fromY, toX, toY) {
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+        }
+        
+        function drawDotOnCanvas(x, y) {
+            ctx.save();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(x, y, LINE_WIDTH / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        let activeGesture = null;
+        let initialPinchDistance = 0;
+        let initialScale = 1.0;
+        let initialTx = 0, initialTy = 0;
+        let initialPanCenter = { x: 0, y: 0 };
+        
+        function getTouchDistance(touches) {
+            if (touches.length < 2) return 0;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        }
+        
+        function getTwoFingerCenter(touches) {
+            if (touches.length < 2) return null;
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+        
+        function onTouchStart(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            const count = touches.length;
+            
+            if (count === 1) {
+                if (activeGesture === 'pinch') return;
+                activeGesture = 'draw';
+                const touch = touches[0];
+                const canvasCoord = screenToCanvas(touch.clientX, touch.clientY);
+                isDrawing = true;
+                currentStrokeMoved = false;
+                lastCanvasX = canvasCoord.x;
+                lastCanvasY = canvasCoord.y;
+            } 
+            else if (count === 2) {
+                activeGesture = 'pinch';
+                initialPinchDistance = getTouchDistance(touches);
+                const center = getTwoFingerCenter(touches);
+                if (center) {
+                    initialPanCenter = { x: center.x, y: center.y };
+                }
+                initialScale = scale;
+                initialTx = tx;
+                initialTy = ty;
+                if (isDrawing) {
+                    isDrawing = false;
+                    currentStrokeMoved = false;
+                }
+            }
+        }
+        
+        function onTouchMove(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            const count = touches.length;
+            
+            if (count === 2 && activeGesture === 'pinch') {
+                const newDistance = getTouchDistance(touches);
+                const newCenter = getTwoFingerCenter(touches);
+                if (newCenter && initialPinchDistance > 0) {
+                    let newScale = initialScale * (newDistance / initialPinchDistance);
+                    const limits = updateScaleLimits();
+                    newScale = Math.min(limits.maxScale, Math.max(limits.minScale, newScale));
+                    
+                    const deltaX = newCenter.x - initialPanCenter.x;
+                    const deltaY = newCenter.y - initialPanCenter.y;
+                    
+                    if (newScale !== scale || deltaX !== 0 || deltaY !== 0) {
+                        const oldScale = initialScale;
+                        const canvasX = (initialPanCenter.x - initialTx) / oldScale;
+                        const canvasY = (initialPanCenter.y - initialTy) / oldScale;
+                        let baseTx = initialPanCenter.x - canvasX * newScale;
+                        let baseTy = initialPanCenter.y - canvasY * newScale;
+                        let finalTx = baseTx + deltaX;
+                        let finalTy = baseTy + deltaY;
+                        scale = newScale;
+                        tx = finalTx;
+                        ty = finalTy;
+                        clampTranslation();
+                        applyTransform();
+                        initialScale = scale;
+                        initialTx = tx;
+                        initialTy = ty;
+                        initialPanCenter = { x: newCenter.x, y: newCenter.y };
+                        initialPinchDistance = newDistance;
+                    }
+                }
+                if (isDrawing) {
+                    isDrawing = false;
+                    currentStrokeMoved = false;
+                }
+                return;
+            }
+            
+            if (count === 1 && activeGesture === 'draw' && isDrawing) {
+                const touch = touches[0];
+                const canvasCoord = screenToCanvas(touch.clientX, touch.clientY);
+                const curCanvasX = canvasCoord.x;
+                const curCanvasY = canvasCoord.y;
+                if ((curCanvasX !== lastCanvasX || curCanvasY !== lastCanvasY)) {
+                    drawLineOnCanvas(lastCanvasX, lastCanvasY, curCanvasX, curCanvasY);
+                    lastCanvasX = curCanvasX;
+                    lastCanvasY = curCanvasY;
+                    currentStrokeMoved = true;
+                }
+            }
+        }
+        
+        function onTouchEnd(e) {
+            e.preventDefault();
+            const remainingTouches = e.touches.length;
+            
+            if (activeGesture === 'pinch') {
+                if (remainingTouches < 2) {
+                    activeGesture = null;
+                }
+                if (isDrawing) isDrawing = false;
+                return;
+            }
+            
+            if (activeGesture === 'draw') {
+                if (!currentStrokeMoved && isDrawing) {
+                    const changed = e.changedTouches;
+                    if (changed.length > 0) {
+                        const lastTouch = changed[0];
+                        const canvasCoord = screenToCanvas(lastTouch.clientX, lastTouch.clientY);
+                        drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
+                    }
+                }
+                isDrawing = false;
+                currentStrokeMoved = false;
+                if (remainingTouches === 0) {
+                    activeGesture = null;
+                } else if (remainingTouches === 1) {
+                    const touches = e.touches;
+                    if (touches.length === 1) {
+                        const touch = touches[0];
+                        const coord = screenToCanvas(touch.clientX, touch.clientY);
+                        isDrawing = true;
+                        currentStrokeMoved = false;
+                        lastCanvasX = coord.x;
+                        lastCanvasY = coord.y;
+                        activeGesture = 'draw';
+                    }
+                } else {
+                    activeGesture = null;
+                }
+            }
+            
+            if (remainingTouches === 0) {
+                activeGesture = null;
+                isDrawing = false;
+            }
+        }
+        
+        let isMiddlePanning = false;
+        let panStartMouse = { x: 0, y: 0 };
+        let startTx = 0, startTy = 0;
+        
+        function onMouseDown(e) {
+            if (e.button === 1) {
+                e.preventDefault();
+                isMiddlePanning = true;
+                panStartMouse.x = e.clientX;
+                panStartMouse.y = e.clientY;
+                startTx = tx;
+                startTy = ty;
+                if (isDrawing) {
+                    isDrawing = false;
+                    currentStrokeMoved = false;
+                }
+                activeGesture = 'pan';
+                return;
+            }
+            if (e.button === 0) {
+                e.preventDefault();
+                const canvasCoord = screenToCanvas(e.clientX, e.clientY);
+                isDrawing = true;
+                currentStrokeMoved = false;
+                lastCanvasX = canvasCoord.x;
+                lastCanvasY = canvasCoord.y;
+                activeGesture = 'draw';
+            }
+        }
+        
+        function onMouseMove(e) {
+            if (isMiddlePanning && activeGesture === 'pan') {
+                e.preventDefault();
+                const deltaX = e.clientX - panStartMouse.x;
+                const deltaY = e.clientY - panStartMouse.y;
+                tx = startTx + deltaX;
+                ty = startTy + deltaY;
+                clampTranslation();
+                applyTransform();
+                return;
+            }
+            if (isDrawing && activeGesture === 'draw') {
+                const canvasCoord = screenToCanvas(e.clientX, e.clientY);
+                const curX = canvasCoord.x, curY = canvasCoord.y;
+                if ((curX !== lastCanvasX || curY !== lastCanvasY)) {
+                    drawLineOnCanvas(lastCanvasX, lastCanvasY, curX, curY);
+                    lastCanvasX = curX;
+                    lastCanvasY = curY;
+                    currentStrokeMoved = true;
+                }
+            }
+        }
+        
+        function onMouseUp(e) {
+            if (isMiddlePanning) {
+                isMiddlePanning = false;
+                activeGesture = null;
+                e.preventDefault();
+                return;
+            }
+            if (isDrawing) {
+                if (!currentStrokeMoved) {
+                    const canvasCoord = screenToCanvas(e.clientX, e.clientY);
+                    drawDotOnCanvas(canvasCoord.x, canvasCoord.y);
+                }
+                isDrawing = false;
+                currentStrokeMoved = false;
+                activeGesture = null;
+            }
+        }
+        
+        function onMouseLeave(e) {
+            if (isDrawing) {
+                isDrawing = false;
+                currentStrokeMoved = false;
+            }
+            if (isMiddlePanning) {
+                isMiddlePanning = false;
+            }
+            activeGesture = null;
+        }
+        
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        function manualSave() {
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const filename = `drawing.png`;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                saveBtn.style.transform = 'scale(0.94)';
+                setTimeout(() => { saveBtn.style.transform = ''; }, 150);
+            }, 'image/png');
+        }
+        
+        saveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            manualSave();
+        });
+        
+        canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+        canvas.addEventListener('touchend', onTouchEnd);
+        canvas.addEventListener('touchcancel', onTouchEnd);
+        
+        canvas.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('mouseleave', onMouseLeave);
+        
+        function resetCanvasBackground() {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.lineWidth = LINE_WIDTH;
+            ctx.strokeStyle = '#000000';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+        resetCanvasBackground();
+        
+        centerCanvasInitially();
+        
+        window.addEventListener('resize', () => {
+            refreshBoundsAndClamp();
+        });
+    })();
+</script>
+</body>
+</html>

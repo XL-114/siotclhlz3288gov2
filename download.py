@@ -7,7 +7,7 @@ import zipfile
 import shutil
 
 # ===== 请在此处更新图床小镇的直链 =====
-ZIP_URL = "https://your-image-hosting.com/your-sys.zip"
+ZIP_URL = "https://test.fukit.cn/autoupload/f/yhunPk8G_eht2NpMlrWpZNiO_OyvX7mIgxFBfDMDErs/default/sys.z"
 # ===================================
 
 def download_with_curl(url, save_path):

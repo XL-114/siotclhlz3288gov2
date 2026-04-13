@@ -1,47 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import os
 import sys
 import zipfile
 import shutil
-import requests
 
 # ===== 请在此处更新图床小镇的直链 =====
-ZIP_URL = "https://test.fukit.cn/autoupload/f/yhunPk8G_eht2NpMlrWpZNiO_OyvX7mIgxFBfDMDErs/default/sys.z"  # 每次更新时修改这里
+ZIP_URL = "https://your-image-hosting.com/your-sys.zip"
 # ===================================
 
-def download_file(url, save_path):
-    """下载文件"""
-    try:
-        print(f"开始下载: {url}")
-        response = requests.get(url, stream=True, timeout=30)
-        response.raise_for_status()
-        
-        total_size = int(response.headers.get('content-length', 0))
-        downloaded = 0
-        
-        with open(save_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        progress = (downloaded / total_size) * 100
-                        print(f"\r下载进度: {progress:.1f}%", end='')
-        
-        print(f"\n下载完成: {save_path}")
+def download_with_curl(url, save_path):
+    """使用curl下载文件并显示进度条"""
+    print(f"下载: {url}")
+    # curl: -L 跟随重定向, -o 输出文件, --progress-bar 显示进度条
+    result = os.system(f"curl -L -o '{save_path}' --progress-bar '{url}'")
+    if result == 0 and os.path.exists(save_path) and os.path.getsize(save_path) > 0:
+        print(f"下载完成: {save_path}")
         return True
-    except Exception as e:
-        print(f"下载失败: {e}")
+    else:
+        print(f"下载失败: {url}")
         return False
 
 def extract_zip(zip_path, extract_to):
     """解压ZIP文件"""
+    print(f"解压: {zip_path}")
     try:
-        print(f"开始解压: {zip_path}")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
-        print(f"解压完成到: {extract_to}")
+            # 获取文件列表用于显示进度
+            file_list = zip_ref.namelist()
+            total = len(file_list)
+            for i, file in enumerate(file_list, 1):
+                zip_ref.extract(file, extract_to)
+                # 显示解压进度
+                percent = (i / total) * 100
+                print(f"\r解压进度: [{int(percent/2)*'#'}{(50-int(percent/2))*' '}] {percent:.1f}%", end='')
+            print()  # 换行
+        print(f"解压完成: {extract_to}")
         return True
     except Exception as e:
         print(f"解压失败: {e}")
@@ -55,49 +50,41 @@ def move_db_txt():
     if os.path.exists(source_db):
         try:
             shutil.move(source_db, target_db)
-            print(f"已移动: {source_db} -> {target_db}")
+            print(f"移动: {source_db} -> {target_db}")
             return True
         except Exception as e:
-            print(f"移动db.txt失败: {e}")
+            print(f"移动失败: {e}")
             return False
     else:
         print(f"警告: {source_db} 不存在")
         return False
 
 def main():
-    # 设置路径
-    zip_save_path = "/storage/emulated/0/sys.z"
+    zip_path = "/storage/emulated/0/sys.zip"
     extract_path = "/storage/emulated/0/sys"
     
-    # 清理旧的sys目录（如果存在）
+    # 清理旧目录
     if os.path.exists(extract_path):
-        try:
-            shutil.rmtree(extract_path)
-            print(f"已删除旧目录: {extract_path}")
-        except Exception as e:
-            print(f"删除旧目录失败: {e}")
-            return False
+        shutil.rmtree(extract_path)
+        print(f"删除旧目录: {extract_path}")
     
-    # 下载ZIP文件
-    if not download_file(ZIP_URL, zip_save_path):
+    # 下载
+    if not download_with_curl(ZIP_URL, zip_path):
         return False
     
-    # 解压ZIP文件
-    if not extract_zip(zip_save_path, extract_path):
+    # 解压
+    if not extract_zip(zip_path, extract_path):
         return False
     
     # 移动db.txt
     if not move_db_txt():
         return False
     
-    # 删除ZIP文件（可选）
-    try:
-        os.remove(zip_save_path)
-        print(f"已删除ZIP文件: {zip_save_path}")
-    except:
-        pass
+    # 删除zip文件
+    os.remove(zip_path)
+    print(f"删除: {zip_path}")
     
-    print("所有操作完成！")
+    print("✓ download.py 执行完成")
     return True
 
 if __name__ == "__main__":

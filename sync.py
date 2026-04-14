@@ -7,7 +7,6 @@ import zipfile
 import shutil
 
 def extract_zip(zip_path, extract_to):
-    """解压ZIP文件"""
     print(f"解压: {zip_path}")
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -19,7 +18,6 @@ def extract_zip(zip_path, extract_to):
         return False
 
 def copy_files():
-    """复制files文件夹到目标目录"""
     source_dir = "/storage/emulated/0/sys/files"
     target_dir = "/storage/emulated/0/Android/data/com.gohi.go.pro.siot.device.clazz/files"
     
@@ -58,16 +56,13 @@ def main():
     zip_path = "/storage/emulated/0/sys.zip"
     extract_path = "/storage/emulated/0/sys"
     
-    # 清理旧目录
     if os.path.exists(extract_path):
         shutil.rmtree(extract_path)
         print(f"删除旧目录: {extract_path}")
     
-    # 1. 解压sys.zip
     if not extract_zip(zip_path, extract_path):
         return False
     
-    # 2. 移动db.txt
     source_db = "/storage/emulated/0/sys/db.txt"
     target_db = "/storage/emulated/0/db.txt"
     if os.path.exists(source_db):
@@ -76,22 +71,18 @@ def main():
     else:
         print(f"警告: {source_db} 不存在")
     
-    # 3. 复制files文件夹
     if not copy_files():
         return False
     
-    # 4. 执行db.py
     print("执行db.py...")
     result = os.system("python /storage/emulated/0/db.py")
     if result != 0:
         print("db.py执行失败")
         return False
     
-    # 5. 清理临时文件
-    os.remove(zip_path)
-    print(f"删除: {zip_path}")
     shutil.rmtree(extract_path)
     print(f"删除: {extract_path}")
+    print(f"保留: {zip_path}")
     
     print("✓ 数据同步成功！退出 Termux")
     return True

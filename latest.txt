@@ -21,3 +21,5 @@ Warning: Activity not started, its current task has been brought to the front
 Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.SplashActivity }
 32
 Warning: Activity not started, its current task has been brought to the front
+Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.SplashActivity }
+15

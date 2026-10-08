@@ -33,3 +33,6 @@ Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.S
 Warning: Activity not started, its current task has been brought to the front
 Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.SplashActivity }
 1145
+Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.SplashActivity }
+19
+Warning: Activity not started, its current task has been brought to the front

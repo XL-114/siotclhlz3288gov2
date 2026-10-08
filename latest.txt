@@ -17,3 +17,6 @@ Broadcast completed: result=0
 Broadcasting: Intent { act=com.xl.nb201.CONFIG_UPDATE (has extras) }
 Broadcast completed: result=0
 26
+Broadcasting: Intent { act=com.xl.nb201.CONFIG_UPDATE (has extras) }
+Broadcast completed: result=0
+07

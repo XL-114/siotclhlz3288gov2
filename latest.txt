@@ -15,3 +15,6 @@ Starting service: Intent { cmp=com.xl.nb201/.feature.sync.AutoUpdateTaskService 
 Starting service: Intent { cmp=com.xl.nb201/.feature.sync.AutoUpdateTaskService }
 32
 05
+Starting: Intent { cmp=com.gohi.go.pro.siot.device.clazz/.module.init.activity.SplashActivity }
+07
+Warning: Activity not started, its current task has been brought to the front

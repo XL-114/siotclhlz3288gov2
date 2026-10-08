@@ -1,2 +1,3 @@
 aaa
 Starting service: Intent { cmp=com.xl.nb201/.feature.sync.AutoUpdateTaskService }
+Starting service: Intent { cmp=com.xl.nb201/.feature.sync.AutoUpdateTaskService }

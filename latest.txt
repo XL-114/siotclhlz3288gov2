@@ -23,3 +23,5 @@ Broadcast completed: result=0
 Broadcasting: Intent { act=com.xl.nb201.CONFIG_UPDATE (has extras) }
 Broadcast completed: result=0
 32
+awk: cmd. line:1: {print \$1}
+awk: cmd. line:1:        ^ backslash not last character on line

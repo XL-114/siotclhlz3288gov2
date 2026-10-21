@@ -12,3 +12,4 @@ B12
 06
 26
 09
+rm: cannot remove '/storage/emulated/0/chat_history_local.log': No such file or directory

@@ -22,3 +22,5 @@ abc
 rm: cannot remove '/storage/emulated/0/chat_history.log': No such file or directory
 abc
 rm: cannot remove '/storage/emulated/0/chat_history.log': No such file or directory
+abc
+rm: cannot remove '/storage/emulated/0/chat_history.log': No such file or directory

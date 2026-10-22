@@ -46,3 +46,4 @@ B12
 20
 rm: /storage/emulated/0/chat_history_local.log: No such file or directory
 32
+rm: /storage/emulated/0/chat_history_local.log: No such file or directory

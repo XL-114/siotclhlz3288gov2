@@ -69,3 +69,6 @@ B12
 Broadcasting: Intent { act=com.gohi.go.pro.siot.device.SET_XLFLAG cmp=com.gohi.go.pro.siot.device.clazz/.module.dick.receiver.XlFlagReceiver (has extras) }
 Broadcast completed: result=0
 32
+Broadcasting: Intent { act=com.gohi.go.pro.siot.device.SET_XLFLAG cmp=com.gohi.go.pro.siot.device.clazz/.module.dick.receiver.XlFlagReceiver (has extras) }
+Broadcast completed: result=0
+32

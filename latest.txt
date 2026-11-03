@@ -77,3 +77,4 @@ Broadcasting: Intent { act=com.gohi.go.pro.siot.device.SET_XLFLAG cmp=com.gohi.g
 Broadcast completed: result=0
 32
 -rw-rw----. 1 root sdcard_rw 845 Nov  3 10:30 /sdcard/clazz_prefs.xml
+not found

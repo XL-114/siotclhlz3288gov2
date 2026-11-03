@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="ic_card_reader_type_device_config" value="5" />
+    <boolean name="app_foreground_lock" value="true" />
+    <int name="face_type_device_config" value="10" />
+    <int name="camera_type_device_config" value="10" />
+    <int name="temp_probe_type_device_config" value="5" />
+    <string name="serial_number_device_config">b4b42158ed9b772b</string>
+    <string name="device_code_device_config">zhql081</string>
+    <long name="room_id_biz_config" value="136" />
+    <int name="light_control_type_device_config" value="5" />
+    <string name="device_bg_picture_device_config"></string>
+    <int name="screen_orientation_device_config" value="10" />
+    <int name="id_card_reader_type_device_config" value="5" />
+    <long name="clazz_id_biz_config" value="444" />
+</map>

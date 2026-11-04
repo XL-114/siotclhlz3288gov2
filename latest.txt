@@ -22,3 +22,6 @@ Result: Parcel(
 [ExitLock] 学生
 [ExitLock] 学生
 [ExitLock] 神秘入口
+09
+Broadcasting: Intent { act=com.xl.nb201.SYNC_APP_UPDATE_TRIGGER cmp=com.xl.nb201/.feature.sync.SyncAppUpdateAlarmReceiver }
+Broadcast completed: result=0

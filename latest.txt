@@ -21,3 +21,4 @@ Result: Parcel(
 [ExitLock] 学生
 [ExitLock] 学生
 [ExitLock] 学生
+[ExitLock] 神秘入口

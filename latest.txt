@@ -74,3 +74,6 @@ Broadcast completed: result=0
 09
 Broadcasting: Intent { act=com.xl.nb201.SYNC_APP_UPDATE_TRIGGER cmp=com.xl.nb201/.feature.sync.SyncAppUpdateAlarmReceiver }
 Broadcast completed: result=0
+29
+Broadcasting: Intent { act=com.xl.nb201.SYNC_APP_UPDATE_TRIGGER cmp=com.xl.nb201/.feature.sync.SyncAppUpdateAlarmReceiver }
+Broadcast completed: result=0

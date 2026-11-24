@@ -68,3 +68,5 @@ Broadcasting: Intent { act=com.gohi.go.pro.siot.device.SET_XLFLAG cmp=com.gohi.g
 Broadcast completed: result=0
 06
 Result: Parcel(00000000    '....')
+Result: Parcel(00000000    '....')
+1
